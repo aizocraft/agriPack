@@ -24,7 +24,16 @@ export async function POST(request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { orderItems, shippingAddress, paymentMethod, itemsPrice, taxPrice, shippingPrice, totalPrice, phoneNumber } = body;
+    const { 
+      orderItems, 
+      shippingAddress, 
+      paymentMethod, 
+      itemsPrice, 
+      taxPrice, 
+      shippingPrice, 
+      totalPrice, 
+      phoneNumber 
+    } = body;
 
     if (!orderItems || orderItems.length === 0) {
       return NextResponse.json(
@@ -33,53 +42,67 @@ export async function POST(request) {
       );
     }
 
-    // Get user ID if authenticated
     const userId = await getUserFromToken(request);
 
-    // Create order
-    const order = new Order({
-      user: userId || null,
-      orderItems,
+    // 1. Build the order data object
+    // We cast to Number to ensure Mongoose validation passes
+    const orderData = {
+      orderItems: orderItems.map(item => ({
+        ...item,
+        price: Number(item.price),
+        qty: Number(item.qty)
+      })),
       shippingAddress,
       paymentMethod,
-      itemsPrice,
-      taxPrice,
-      shippingPrice,
-      totalPrice
-    });
+      itemsPrice: Number(itemsPrice),
+      taxPrice: Number(taxPrice),
+      shippingPrice: Number(shippingPrice),
+      totalPrice: Number(totalPrice),
+      status: 'pending'
+    };
 
-    // If M-Pesa payment, initiate STK Push
+    // 2. ONLY add user if they are logged in. 
+    // This fixes the "user: Path user is required" error.
+    if (userId) {
+      orderData.user = userId;
+    }
+
+    const order = new Order(orderData);
+
+    // 3. Handle M-Pesa STK Push
     if (paymentMethod === 'mpesa' && phoneNumber) {
       try {
+        // Sanitize phone number (converts 07... or +254... to 254...)
+        const formattedPhone = phoneNumber.replace(/\D/g, '').replace(/^0/, '254').replace(/^\+/, '');
+        
         const mpesaResponse = await stkPush(
-          phoneNumber,
-          totalPrice,
+          formattedPhone,
+          Math.round(totalPrice), // Safaricom requires integers
           `ORDER_${Date.now()}`,
-          'Payment for order'
+          'AgriPack Payment'
         );
         
-        if (mpesaResponse.ResponseCode === '0') {
+        if (mpesaResponse && mpesaResponse.ResponseCode === '0') {
           order.mpesaCheckoutRequestID = mpesaResponse.CheckoutRequestID;
         }
       } catch (mpesaError) {
-        console.error('M-Pesa error:', mpesaError);
-        // Continue with order creation even if M-Pesa fails
+        // We log but don't crash the whole order if M-Pesa fails to trigger
+        console.error('M-Pesa Service Error:', mpesaError.message);
       }
     }
 
     const createdOrder = await order.save();
 
-    // Update product stock
+    // 4. Update product stock (Optimized loop)
     for (const item of orderItems) {
-      const product = await Product.findById(item.product);
-      if (product) {
-        product.stock = Math.max(0, product.stock - item.qty);
-        await product.save();
-      }
+      await Product.findByIdAndUpdate(item.product, {
+        $inc: { stock: -item.qty }
+      });
     }
 
     return NextResponse.json(createdOrder, { status: 201 });
   } catch (error) {
+    console.error("SERVER_ORDER_ERROR:", error);
     return NextResponse.json(
       { message: error.message },
       { status: 500 }
@@ -87,7 +110,7 @@ export async function POST(request) {
   }
 }
 
-// @desc    Get orders - for buyers (their orders) or farmers (orders for their products)
+// @desc    Get orders - for buyers or farmers
 // @route   GET /api/orders
 export async function GET(request) {
   try {
@@ -95,24 +118,18 @@ export async function GET(request) {
     const userId = await getUserFromToken(request);
     
     if (!userId) {
-      return NextResponse.json(
-        { message: 'Not authorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: 'Not authorized' }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
-    const type = searchParams.get('type'); // 'farmer' or default (buyer)
+    const type = searchParams.get('type');
 
     let orders;
 
     if (type === 'farmer') {
-      // For farmers: Get orders containing their products
-      // First, find all products owned by this farmer
       const farmerProducts = await Product.find({ farmer: userId }).select('_id');
       const productIds = farmerProducts.map(p => p._id);
 
-      // Then find orders containing any of these products
       orders = await Order.find({ 
         'orderItems.product': { $in: productIds }
       })
@@ -120,20 +137,18 @@ export async function GET(request) {
         .populate('orderItems.product', 'name image farmer')
         .sort({ createdAt: -1 });
 
-      // Filter to only include items from farmer's products
       orders = orders.map(order => {
-        const farmerOrderItems = order.orderItems.filter(
-          item => item.product && item.product.farmer && item.product.farmer.toString() === userId
+        const orderObj = order.toObject();
+        const farmerOrderItems = orderObj.orderItems.filter(
+          item => item.product?.farmer?.toString() === userId
         );
         return {
-          ...order.toObject(),
+          ...orderObj,
           orderItems: farmerOrderItems,
-          // Calculate total for farmer's items only
           farmerTotal: farmerOrderItems.reduce((sum, item) => sum + (item.price * item.qty), 0)
         };
       });
     } else {
-      // For buyers: Get their own orders
       orders = await Order.find({ user: userId })
         .populate('orderItems.product', 'name image')
         .sort({ createdAt: -1 });
@@ -141,9 +156,6 @@ export async function GET(request) {
 
     return NextResponse.json({ orders });
   } catch (error) {
-    return NextResponse.json(
-      { message: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ message: error.message }, { status: 500 });
   }
 }

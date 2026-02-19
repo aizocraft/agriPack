@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
@@ -11,6 +11,9 @@ export default function CheckoutPage() {
   const [error, setError] = useState('');
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [orderId, setOrderId] = useState('');
+  const [paymentStatus, setPaymentStatus] = useState('pending'); // pending, initiating, waiting, success, failed
+  const [mpesaCheckoutRequestID, setMpesaCheckoutRequestID] = useState('');
+  const pollingIntervalRef = useRef(null);
   const router = useRouter();
 
   const [formData, setFormData] = useState({
@@ -27,6 +30,59 @@ export default function CheckoutPage() {
   const shippingPrice = itemsPrice > 1000 ? 0 : 150;
   const totalPrice = itemsPrice + taxPrice + shippingPrice;
 
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
+  }, []);
+
+  // Poll for payment status when waiting for payment
+  useEffect(() => {
+    if (paymentStatus === 'waiting' && orderId) {
+      pollingIntervalRef.current = setInterval(async () => {
+        try {
+          const token = localStorage.getItem('token');
+          const headers = {};
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+          }
+
+          const res = await fetch(`/api/orders/${orderId}`, {
+            headers
+          });
+          
+          if (res.ok) {
+            const order = await res.json();
+            if (order.isPaid) {
+              // Payment confirmed!
+              clearInterval(pollingIntervalRef.current);
+              setPaymentStatus('success');
+            }
+          }
+        } catch (err) {
+          console.error('Error polling payment status:', err);
+        }
+      }, 3000); // Poll every 3 seconds
+
+      // Timeout after 2 minutes
+      setTimeout(() => {
+        if (pollingIntervalRef.current && paymentStatus === 'waiting') {
+          clearInterval(pollingIntervalRef.current);
+          setPaymentStatus('timeout');
+        }
+      }, 120000); // 2 minutes timeout
+    }
+
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
+  }, [paymentStatus, orderId]);
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -38,11 +94,6 @@ export default function CheckoutPage() {
 
     try {
       const token = localStorage.getItem('token');
-      
-      if (!token) {
-        router.push('/login?redirect=checkout');
-        return;
-      }
 
       const orderData = {
         orderItems: cartItems.map(item => ({
@@ -67,12 +118,18 @@ export default function CheckoutPage() {
         phoneNumber: formData.phone
       };
 
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      
+      // Only add authorization header if user is logged in
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const res = await fetch('/api/orders', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers,
         body: JSON.stringify(orderData)
       });
 
@@ -80,8 +137,18 @@ export default function CheckoutPage() {
 
       if (res.ok) {
         setOrderId(data._id);
-        setOrderPlaced(true);
-        clearCart();
+        
+        // Check if M-Pesa was initiated
+        if (paymentMethod === 'mpesa' && data.mpesaCheckoutRequestID) {
+          setMpesaCheckoutRequestID(data.mpesaCheckoutRequestID);
+          setPaymentStatus('waiting');
+          clearCart();
+        } else {
+          // For COD or if M-Pesa failed to initiate
+          setOrderPlaced(true);
+          setPaymentStatus('success');
+          clearCart();
+        }
       } else {
         setError(data.message || 'Failed to place order');
       }
@@ -91,6 +158,202 @@ export default function CheckoutPage() {
       setLoading(false);
     }
   };
+
+  // Render M-Pesa payment processing UI
+  const renderPaymentProcessing = () => (
+    <div className="payment-processing">
+      <div className="processing-icon">📱</div>
+      <h2>Check Your Phone</h2>
+      <p className="processing-amount">KSh {totalPrice.toLocaleString()}</p>
+      <p className="processing-instructions">
+        A pop-up has been sent to your phone <strong>{formData.phone}</strong>. 
+        Enter your M-Pesa PIN to complete the payment.
+      </p>
+      
+      {paymentStatus === 'waiting' && (
+        <div className="processing-status">
+          <div className="spinner"></div>
+          <p>Waiting for payment confirmation...</p>
+          <p className="processing-hint">This may take up to 2 minutes</p>
+        </div>
+      )}
+
+      {paymentStatus === 'success' && (
+        <div className="payment-success">
+          <div className="success-icon">✓</div>
+          <h3>Payment Successful!</h3>
+          <p>Your order has been confirmed.</p>
+        </div>
+      )}
+
+      {paymentStatus === 'timeout' && (
+        <div className="payment-timeout">
+          <div className="warning-icon">⚠️</div>
+          <h3>Payment Timeout</h3>
+          <p>We didn't receive payment confirmation. Your order is still pending.</p>
+          <p>You can check your phone for any pending M-Pesa prompts, or try again.</p>
+          <div className="timeout-actions">
+            <button 
+              onClick={() => {
+                setPaymentStatus('pending');
+                setOrderPlaced(true);
+              }} 
+              className="btn btn-primary"
+            >
+              View Order
+            </button>
+            <button 
+              onClick={() => {
+                setPaymentStatus('pending');
+                setOrderId('');
+                setMpesaCheckoutRequestID('');
+              }} 
+              className="btn btn-outline"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      )}
+
+      {paymentStatus === 'waiting' && (
+        <div className="payment-actions">
+          <button 
+            onClick={() => {
+              setPaymentStatus('pending');
+              setOrderId('');
+              setMpesaCheckoutRequestID('');
+            }} 
+            className="btn btn-outline"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
+      <style jsx>{`
+        .payment-processing {
+          text-align: center;
+          padding: 48px 24px;
+          max-width: 500px;
+          margin: 0 auto;
+        }
+
+        .processing-icon {
+          font-size: 4rem;
+          margin-bottom: 24px;
+        }
+
+        .processing-amount {
+          font-size: 2rem;
+          font-weight: 700;
+          color: var(--primary);
+          margin-bottom: 16px;
+        }
+
+        .processing-instructions {
+          color: var(--text-secondary);
+          margin-bottom: 32px;
+          line-height: 1.6;
+        }
+
+        .processing-status {
+          margin-top: 24px;
+        }
+
+        .spinner {
+          width: 40px;
+          height: 40px;
+          border: 4px solid var(--border);
+          border-top-color: var(--primary);
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+
+        .processing-hint {
+          font-size: 0.875rem;
+          color: var(--text-secondary);
+          margin-top: 8px;
+        }
+
+        .payment-success {
+          margin-top: 24px;
+        }
+
+        .success-icon {
+          width: 80px;
+          height: 80px;
+          background: var(--success);
+          color: white;
+          font-size: 3rem;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin: 0 auto 24px;
+        }
+
+        .payment-timeout {
+          margin-top: 24px;
+        }
+
+        .warning-icon {
+          font-size: 3rem;
+          margin-bottom: 16px;
+        }
+
+        .timeout-actions, .payment-actions {
+          display: flex;
+          gap: 16px;
+          justify-content: center;
+          margin-top: 24px;
+        }
+      `}</style>
+    </div>
+  );
+
+  // Show M-Pesa payment processing when waiting for payment
+  if (paymentStatus === 'waiting' || paymentStatus === 'success' || paymentStatus === 'timeout') {
+    return (
+      <div className="container">
+        {renderPaymentProcessing()}
+        {paymentStatus === 'success' && (
+          <div className="order-success-footer">
+            <p>Your order ID is: <strong>{orderId}</strong></p>
+            <div className="success-buttons">
+              <Link href="/products" className="btn btn-primary">
+                Continue Shopping
+              </Link>
+              <Link href="/profile" className="btn btn-outline">
+                View Orders
+              </Link>
+            </div>
+          </div>
+        )}
+        <style jsx>{`
+          .order-success-footer {
+            text-align: center;
+            padding: 24px;
+            margin-top: 24px;
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+          }
+          .success-buttons {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            margin-top: 24px;
+          }
+        `}</style>
+      </div>
+    );
+  }
 
   if (orderPlaced) {
     return (

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
 import Product from '@/models/Product';
+import User from '@/models/User';
 
 // @desc    Get all products
 // @route   GET /api/products
