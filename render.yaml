@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: agripack
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        value: ${MONGODB_URI}
+      - key: JWT_SECRET
+        value: ${JWT_SECRET}
+      - key: MPESA_ENV
+        value: production
+      - key: MPESA_CONSUMER_KEY
+        value: ${MPESA_CONSUMER_KEY}
+      - key: MPESA_CONSUMER_SECRET
+        value: ${MPESA_CONSUMER_SECRET}
+      - key: MPESA_SHORTCODE
+        value: ${MPESA_SHORTCODE}
+      - key: MPESA_PASSKEY
+        value: ${MPESA_PASSKEY}
+      - key: MPESA_CALLBACK_URL
+        value: https://agripack.onrender.com/api/mpesa/callback
