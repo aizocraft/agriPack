@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function RegisterPage() {
+function RegisterForm() {
   const searchParams = useSearchParams();
   const initialRole = searchParams.get('role') || 'customer';
   
@@ -93,107 +93,105 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="auth-page">
-      <div className="auth-card">
-        <h1 className="auth-title">Create Account</h1>
-        <p className="auth-subtitle">Join AgriPack today</p>
+    <div className="auth-card">
+      <h1 className="auth-title">Create Account</h1>
+      <p className="auth-subtitle">Join AgriPack today</p>
 
-        {error && <div className="alert alert-error">{error}</div>}
+      {error && <div className="alert alert-error">{error}</div>}
 
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label className="form-label">Full Name</label>
+      <form onSubmit={handleSubmit}>
+        <div className="form-group">
+          <label className="form-label">Full Name</label>
+          <input
+            type="text"
+            name="name"
+            className="form-input"
+            placeholder="John Doe"
+            value={formData.name}
+            onChange={handleChange}
+            required
+          />
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Email Address</label>
+          <input
+            type="email"
+            name="email"
+            className="form-input"
+            placeholder="your@email.com"
+            value={formData.email}
+            onChange={handleChange}
+            required
+          />
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Phone Number</label>
+          <input
+            type="tel"
+            name="phone"
+            className="form-input"
+            placeholder="+254 700 000 000"
+            value={formData.phone}
+            onChange={handleChange}
+            required
+          />
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Password</label>
+          <input
+            type="password"
+            name="password"
+            className="form-input"
+            placeholder="••••••••"
+            value={formData.password}
+            onChange={handleChange}
+            required
+            minLength={6}
+          />
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Confirm Password</label>
+          <input
+            type="password"
+            name="confirmPassword"
+            className="form-input"
+            placeholder="••••••••"
+            value={formData.confirmPassword}
+            onChange={handleChange}
+            required
+          />
+        </div>
+
+        <div className="form-group">
+          <label className="checkbox-label">
             <input
-              type="text"
-              name="name"
-              className="form-input"
-              placeholder="John Doe"
-              value={formData.name}
+              type="checkbox"
+              name="isFarmer"
+              checked={formData.isFarmer}
               onChange={handleChange}
-              required
             />
-          </div>
+            <span>I want to sell products (Register as Farmer)</span>
+          </label>
+        </div>
 
-          <div className="form-group">
-            <label className="form-label">Email Address</label>
-            <input
-              type="email"
-              name="email"
-              className="form-input"
-              placeholder="your@email.com"
-              value={formData.email}
-              onChange={handleChange}
-              required
-            />
-          </div>
+        <button 
+          type="submit" 
+          className="btn btn-primary btn-large"
+          style={{ width: '100%' }}
+          disabled={loading}
+        >
+          {loading ? 'Creating Account...' : 'Create Account'}
+        </button>
+      </form>
 
-          <div className="form-group">
-            <label className="form-label">Phone Number</label>
-            <input
-              type="tel"
-              name="phone"
-              className="form-input"
-              placeholder="+254 700 000 000"
-              value={formData.phone}
-              onChange={handleChange}
-              required
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Password</label>
-            <input
-              type="password"
-              name="password"
-              className="form-input"
-              placeholder="••••••••"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              minLength={6}
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Confirm Password</label>
-            <input
-              type="password"
-              name="confirmPassword"
-              className="form-input"
-              placeholder="••••••••"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              required
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                name="isFarmer"
-                checked={formData.isFarmer}
-                onChange={handleChange}
-              />
-              <span>I want to sell products (Register as Farmer)</span>
-            </label>
-          </div>
-
-          <button 
-            type="submit" 
-            className="btn btn-primary btn-large"
-            style={{ width: '100%' }}
-            disabled={loading}
-          >
-            {loading ? 'Creating Account...' : 'Create Account'}
-          </button>
-        </form>
-
-        <p className="auth-footer">
-          Already have an account?{' '}
-          <Link href="/login" className="auth-link">Sign In</Link>
-        </p>
-      </div>
+      <p className="auth-footer">
+        Already have an account?{' '}
+        <Link href="/login" className="auth-link">Sign In</Link>
+      </p>
 
       <style jsx>{`
         .checkbox-label {
@@ -224,6 +222,16 @@ export default function RegisterPage() {
           text-decoration: underline;
         }
       `}</style>
+    </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <div className="auth-page">
+      <Suspense fallback={<div className="auth-card">Loading...</div>}>
+        <RegisterForm />
+      </Suspense>
     </div>
   );
 }
