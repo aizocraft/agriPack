@@ -45,8 +45,12 @@ export default function FarmerDashboard() {
       const productsData = await productsRes.json();
       setProducts(productsData.products || []);
 
-      // Fetch farmer's orders (would need to implement this endpoint)
-      setOrders([]);
+      // Fetch farmer's orders using the new endpoint
+      const ordersRes = await fetch('/api/orders?type=farmer', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const ordersData = await ordersRes.json();
+      setOrders(ordersData.orders || []);
     } catch (error) {
       console.error('Error fetching farmer data:', error);
     } finally {
@@ -136,7 +140,7 @@ export default function FarmerDashboard() {
         <div className="stat-card">
           <div className="stat-icon">💰</div>
           <div className="stat-info">
-            <span className="stat-value">KSh 0</span>
+            <span className="stat-value">KSh {orders.reduce((sum, order) => sum + (order.farmerTotal || 0), 0).toLocaleString()}</span>
             <span className="stat-label">Total Sales</span>
           </div>
         </div>
@@ -292,6 +296,58 @@ export default function FarmerDashboard() {
             >
               Add Your First Product
             </button>
+          </div>
+        )}
+      </div>
+
+      {/* Orders Section */}
+      <div className="dashboard-section">
+        <h2>Orders for My Products</h2>
+        {orders.length > 0 ? (
+          <div className="orders-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Order ID</th>
+                  <th>Customer</th>
+                  <th>Product</th>
+                  <th>Qty</th>
+                  <th>Total</th>
+                  <th>Status</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orders.map((order) => (
+                  order.orderItems && order.orderItems.map((item, index) => (
+                    <tr key={`${order._id}-${index}`}>
+                      <td>#{order._id.slice(-8)}</td>
+                      <td>
+                        <div className="customer-info">
+                          <span>{order.user?.name || 'Guest'}</span>
+                          <span className="customer-email">{order.user?.phone || 'No phone'}</span>
+                        </div>
+                      </td>
+                      <td>{item.name}</td>
+                      <td>{item.qty}</td>
+                      <td>KSh {(item.price * item.qty).toLocaleString()}</td>
+                      <td>
+                        <span className={`badge badge-${order.status === 'delivered' ? 'success' : order.status === 'cancelled' ? 'danger' : 'warning'}`}>
+                          {order.status}
+                        </span>
+                      </td>
+                      <td>{new Date(order.createdAt).toLocaleDateString()}</td>
+                    </tr>
+                  ))
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="empty-state">
+            <div className="empty-state-icon">📋</div>
+            <h3>No Orders Yet</h3>
+            <p>Orders for your products will appear here</p>
           </div>
         )}
       </div>

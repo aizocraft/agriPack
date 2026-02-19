@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
-import dbConnect from '@/lib/dbConnect';
+import dbConnect from '@/lib/db';
 import User from '@/models/User';
 
 // Generate JWT Token

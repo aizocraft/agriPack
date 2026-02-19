@@ -87,7 +87,7 @@ export async function POST(request) {
   }
 }
 
-// @desc    Get logged in user orders
+// @desc    Get orders - for buyers (their orders) or farmers (orders for their products)
 // @route   GET /api/orders
 export async function GET(request) {
   try {
@@ -101,11 +101,45 @@ export async function GET(request) {
       );
     }
 
-    const orders = await Order.find({ user: userId })
-      .populate('orderItems.product', 'name image')
-      .sort({ createdAt: -1 });
+    const { searchParams } = new URL(request.url);
+    const type = searchParams.get('type'); // 'farmer' or default (buyer)
 
-    return NextResponse.json(orders);
+    let orders;
+
+    if (type === 'farmer') {
+      // For farmers: Get orders containing their products
+      // First, find all products owned by this farmer
+      const farmerProducts = await Product.find({ farmer: userId }).select('_id');
+      const productIds = farmerProducts.map(p => p._id);
+
+      // Then find orders containing any of these products
+      orders = await Order.find({ 
+        'orderItems.product': { $in: productIds }
+      })
+        .populate('user', 'name email phone')
+        .populate('orderItems.product', 'name image farmer')
+        .sort({ createdAt: -1 });
+
+      // Filter to only include items from farmer's products
+      orders = orders.map(order => {
+        const farmerOrderItems = order.orderItems.filter(
+          item => item.product && item.product.farmer && item.product.farmer.toString() === userId
+        );
+        return {
+          ...order.toObject(),
+          orderItems: farmerOrderItems,
+          // Calculate total for farmer's items only
+          farmerTotal: farmerOrderItems.reduce((sum, item) => sum + (item.price * item.qty), 0)
+        };
+      });
+    } else {
+      // For buyers: Get their own orders
+      orders = await Order.find({ user: userId })
+        .populate('orderItems.product', 'name image')
+        .sort({ createdAt: -1 });
+    }
+
+    return NextResponse.json({ orders });
   } catch (error) {
     return NextResponse.json(
       { message: error.message },
