@@ -7,6 +7,7 @@ import AddToCartButton from '@/components/AddToCartButton';
 export default function Home() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchProducts();
@@ -14,13 +15,22 @@ export default function Home() {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch('/api/products?limit=8');
+      setLoading(true);
+      setError(null);
+      const res = await fetch('/api/products?limit=8', {
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
       if (res.ok) {
         const data = await res.json();
         setProducts(data.products || []);
+      } else {
+        setError('Failed to load products. Please try again.');
       }
     } catch (error) {
       console.error('Error fetching products:', error);
+      setError('Unable to connect to server. Please check your connection.');
     } finally {
       setLoading(false);
     }
@@ -75,39 +85,84 @@ export default function Home() {
       </section>
 
       {/* Products Section */}
-      <section className="section" style={{ background: '#f5f5f5' }}>
+      <section className="section featured-products-section">
         <div className="container">
-          <h2 className="section-title">Featured Products</h2>
+          <div className="section-header">
+            <h2 className="section-title">Featured Products</h2>
+            <p className="section-subtitle">Fresh from the farm to your table</p>
+          </div>
           
-          {products.length > 0 ? (
-            <div className="product-grid">
-              {products.map((product) => (
-                <Link href={`/products/${product._id}`} key={product._id} className="card">
-                  <div className="card-image">
+          {loading ? (
+            <div className="featured-products-grid">
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="featured-product-card skeleton">
+                  <div className="product-image-wrapper">
+                    <div className="product-image-placeholder skeleton-image"></div>
+                  </div>
+                  <div className="product-card-body">
+                    <div className="skeleton-text skeleton-title"></div>
+                    <div className="skeleton-text skeleton-price"></div>
+                    <div className="skeleton-text skeleton-stock"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : error ? (
+            <div className="error-state">
+              <div className="error-icon">⚠️</div>
+              <h3 className="error-title">Oops! Something went wrong</h3>
+              <p className="error-text">{error}</p>
+              <button className="btn btn-primary" onClick={fetchProducts}>
+                Try Again
+              </button>
+            </div>
+          ) : products.length > 0 ? (
+            <div className="featured-products-grid">
+              {products.map((product, index) => (
+                <Link href={`/products/${product._id}`} key={product._id} className="featured-product-card" style={{ animationDelay: `${index * 0.1}s` }}>
+                  <div className="product-image-wrapper">
                     {product.image ? (
-                      <img src={product.image} alt={product.name} style={{ width: '100%', height: '200px', objectFit: 'cover' }} />
+                      <img src={product.image} alt={product.name} className="product-image" />
                     ) : (
-                      <div style={{ width: '100%', height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#e0e0e0', fontSize: '3rem' }}>
+                      <div className="product-image-placeholder">
                         🥬
                       </div>
                     )}
-                  </div>
-                  <div className="card-body">
-                    <h3 className="card-title">{product.name}</h3>
-                    <p className="card-text">{product.category}</p>
-                    <div className="card-footer">
-                      <span className="card-price">KSh {product.price}</span>
-                      <span className="card-unit">/ {product.unit}</span>
+                    <div className="product-overlay">
+                      <span className="view-details-btn">View Details</span>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
+                    {product.category && (
+                      <span className="product-category-badge">{product.category}</span>
+                    )}
+                    {/* Stock Badge */}
+                    <span className={`product-stock-badge ${product.stock > 0 ? 'in-stock' : 'out-of-stock'}`}>
+                      {product.stock > 0 ? 'In Stock' : 'Out of Stock'}
+                    </span>
+                  </div>
+                  <div className="product-card-body">
+                    <h3 className="product-title">{product.name}</h3>
+                    <div className="product-price-row">
+                      <span className="product-price">KSh {product.price}</span>
+                      <span className="product-unit">/ {product.unit}</span>
+                    </div>
+                    <div className="product-stock-info">
                       {product.stock > 0 ? (
-                        <span className="badge badge-primary">In Stock</span>
+                        <>
+                          <span className="stock-indicator in-stock">
+                            <span className="stock-dot"></span>
+                            Available
+                          </span>
+                          <span className="stock-count">{product.stock} {product.unit}s</span>
+                        </>
                       ) : (
-                        <span className="badge badge-secondary">Out of Stock</span>
+                        <span className="stock-indicator out-of-stock">
+                          <span className="stock-dot"></span>
+                          Unavailable
+                        </span>
                       )}
                     </div>
                     {product.stock > 0 && (
-                      <div style={{ marginTop: '12px' }} onClick={(e) => e.preventDefault()}>
+                      <div className="product-action" onClick={(e) => e.preventDefault()}>
                         <AddToCartButton product={product} />
                       </div>
                     )}
@@ -127,9 +182,10 @@ export default function Home() {
           )}
 
           {products.length > 0 && (
-            <div style={{ textAlign: 'center', marginTop: '32px' }}>
-              <Link href="/products" className="btn btn-outline">
+            <div className="view-all-container">
+              <Link href="/products" className="btn btn-outline btn-large">
                 View All Products
+                <span className="btn-arrow">→</span>
               </Link>
             </div>
           )}
@@ -185,16 +241,227 @@ export default function Home() {
           font-size: 0.875rem;
         }
 
-        .card-footer {
+        /* Featured Products Section */
+        .featured-products-section {
+          background: linear-gradient(180deg, #f5f5f5 0%, #ffffff 100%);
+        }
+
+        .section-header {
+          text-align: center;
+          margin-bottom: 40px;
+        }
+
+        .section-header .section-title {
+          font-size: 2.25rem;
+          font-weight: 700;
+          color: var(--text-primary);
+          margin-bottom: 8px;
+        }
+
+        .section-subtitle {
+          font-size: 1.1rem;
+          color: var(--text-secondary);
+        }
+
+        .featured-products-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+          gap: 28px;
+          padding: 20px 0;
+        }
+
+        .featured-product-card {
+          background: white;
+          border-radius: 16px;
+          overflow: hidden;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+          transition: all 0.3s ease;
+          animation: fadeInUp 0.5s ease both;
+        }
+
+        .featured-product-card:hover {
+          transform: translateY(-8px);
+          box-shadow: 0 12px 28px rgba(0, 0, 0, 0.15);
+        }
+
+        .featured-product-card:hover .product-overlay {
+          opacity: 1;
+        }
+
+        .product-image-wrapper {
+          position: relative;
+          overflow: hidden;
+        }
+
+        .product-image {
+          width: 100%;
+          height: 220px;
+          object-fit: cover;
+          transition: transform 0.3s ease;
+        }
+
+        .featured-product-card:hover .product-image {
+          transform: scale(1.05);
+        }
+
+        .product-image-placeholder {
+          width: 100%;
+          height: 220px;
+          background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 4rem;
+        }
+
+        .product-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.4);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          opacity: 0;
+          transition: opacity 0.3s ease;
+        }
+
+        .view-details-btn {
+          padding: 12px 24px;
+          background: white;
+          color: var(--primary);
+          border-radius: 25px;
+          font-weight: 600;
+          font-size: 0.9rem;
+          transform: translateY(10px);
+          transition: transform 0.3s ease;
+        }
+
+        .featured-product-card:hover .view-details-btn {
+          transform: translateY(0);
+        }
+
+        .product-category-badge {
+          position: absolute;
+          top: 12px;
+          left: 12px;
+          padding: 6px 12px;
+          background: rgba(255, 255, 255, 0.95);
+          color: var(--primary);
+          border-radius: 20px;
+          font-size: 0.7rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .product-stock-badge {
+          position: absolute;
+          top: 12px;
+          right: 12px;
+          padding: 6px 12px;
+          border-radius: 20px;
+          font-size: 0.7rem;
+          font-weight: 700;
+          text-transform: uppercase;
+        }
+
+        .product-stock-badge.in-stock {
+          background: #22c55e;
+          color: white;
+        }
+
+        .product-stock-badge.out-of-stock {
+          background: #ef4444;
+          color: white;
+        }
+
+        .product-card-body {
+          padding: 20px;
+        }
+
+        .product-title {
+          font-size: 1.15rem;
+          font-weight: 600;
+          margin-bottom: 10px;
+          color: var(--text-primary);
+          line-height: 1.4;
+        }
+
+        .product-price-row {
           display: flex;
           align-items: baseline;
           gap: 4px;
           margin-bottom: 12px;
         }
 
-        .card-unit {
+        .product-price {
+          font-size: 1.4rem;
+          font-weight: 800;
+          color: var(--primary);
+        }
+
+        .product-unit {
+          font-size: 0.9rem;
           color: var(--text-secondary);
-          font-size: 0.875rem;
+        }
+
+        .product-stock-info {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 16px;
+          padding-top: 12px;
+          border-top: 1px solid #f0f0f0;
+        }
+
+        .stock-indicator {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 0.85rem;
+          font-weight: 500;
+        }
+
+        .stock-indicator.in-stock {
+          color: #22c55e;
+        }
+
+        .stock-indicator.out-of-stock {
+          color: #ef4444;
+        }
+
+        .stock-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: currentColor;
+        }
+
+        .stock-count {
+          font-size: 0.8rem;
+          color: var(--text-secondary);
+        }
+
+        .product-action {
+          margin-top: auto;
+        }
+
+        .view-all-container {
+          text-align: center;
+          margin-top: 40px;
+        }
+
+        .btn-arrow {
+          margin-left: 8px;
+          transition: transform 0.3s ease;
+          display: inline-block;
+        }
+
+        .btn-outline:hover .btn-arrow {
+          transform: translateX(4px);
         }
 
         .cta-section {
@@ -216,6 +483,17 @@ export default function Home() {
           margin-bottom: 32px;
         }
 
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
         @media (max-width: 768px) {
           .features-grid {
             grid-template-columns: repeat(2, 1fr);
@@ -227,6 +505,38 @@ export default function Home() {
 
           .cta-section h2 {
             font-size: 1.5rem;
+          }
+
+          .featured-products-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+          }
+
+          .section-header .section-title {
+            font-size: 1.75rem;
+          }
+
+          .product-image,
+          .product-image-placeholder {
+            height: 160px;
+          }
+
+          .product-card-body {
+            padding: 14px;
+          }
+
+          .product-title {
+            font-size: 1rem;
+          }
+
+          .product-price {
+            font-size: 1.2rem;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .featured-products-grid {
+            grid-template-columns: 1fr;
           }
         }
       `}</style>

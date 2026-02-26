@@ -11,6 +11,13 @@ export default function FarmerDashboard() {
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   
+  // Pagination states
+  const [productsPage, setProductsPage] = useState(1);
+  const [ordersPage, setOrdersPage] = useState(1);
+  const [productsTotalPages, setProductsTotalPages] = useState(1);
+  const [ordersTotalPages, setOrdersTotalPages] = useState(1);
+  const [orderFilter, setOrderFilter] = useState('all');
+  
   // Modal states
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
@@ -259,14 +266,16 @@ export default function FarmerDashboard() {
       if (res.ok) {
         const updatedOrder = await res.json();
         setOrders(orders.map(o => o._id === updatedOrder._id ? updatedOrder : o));
+        // Refresh the selected order in the modal
         setSelectedOrder(updatedOrder);
-        alert('Order marked as delivered');
+        alert('Order marked as delivered successfully!');
       } else {
-        alert('Failed to update order');
+        const data = await res.json();
+        alert(data.message || 'Failed to update order');
       }
     } catch (error) {
       console.error('Error updating order:', error);
-      alert('An error occurred');
+      alert('An error occurred while updating the order');
     }
   };
 
@@ -287,14 +296,16 @@ export default function FarmerDashboard() {
       if (res.ok) {
         const updatedOrder = await res.json();
         setOrders(orders.map(o => o._id === updatedOrder._id ? updatedOrder : o));
+        // Refresh the selected order in the modal
         setSelectedOrder(updatedOrder);
-        alert('Order marked as paid');
+        alert('Order marked as paid successfully!');
       } else {
-        alert('Failed to update order');
+        const data = await res.json();
+        alert(data.message || 'Failed to update order');
       }
     } catch (error) {
       console.error('Error updating order:', error);
-      alert('An error occurred');
+      alert('An error occurred while updating the order');
     }
   };
 

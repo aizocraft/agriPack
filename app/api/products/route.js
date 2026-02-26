@@ -11,6 +11,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
     const category = searchParams.get('category');
+    const farmer = searchParams.get('farmer');
     const page = parseInt(searchParams.get('page')) || 1;
     const limit = parseInt(searchParams.get('limit')) || 10;
     
@@ -30,6 +31,13 @@ export async function GET(request) {
       query.category = category;
     }
     
+    // Farmer filter (for farmer dashboard)
+    if (farmer) {
+      query.farmer = farmer;
+      // Remove isActive filter for farmer dashboard to show all products
+      delete query.isActive;
+    }
+    
     const products = await Product.find(query)
       .populate('farmer', 'name email')
       .limit(limit)
@@ -38,12 +46,17 @@ export async function GET(request) {
     
     const count = await Product.countDocuments(query);
     
-    return NextResponse.json({
+    const response = NextResponse.json({
       products,
       totalPages: Math.ceil(count / limit),
       currentPage: page,
       totalProducts: count
     });
+    
+    // Add cache headers for faster reloads (cache for 2 minutes)
+    response.headers.set('Cache-Control', 'public, s-maxage=120, stale-while-revalidate=300');
+    
+    return response;
   } catch (error) {
     return NextResponse.json(
       { message: error.message },

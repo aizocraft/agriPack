@@ -356,13 +356,51 @@ export default function CheckoutPage() {
   }
 
   if (orderPlaced) {
+    const isCOD = paymentMethod === 'cod';
     return (
       <div className="container">
         <div className="order-success">
           <div className="success-icon">✓</div>
           <h1>Order Placed Successfully!</h1>
           <p>Your order ID is: <strong>{orderId}</strong></p>
-          <p>We'll send you a confirmation SMS with delivery details.</p>
+          
+          {isCOD ? (
+            <div className="cod-message">
+              <div className="payment-type-icon">💵</div>
+              <h3>Cash on Delivery</h3>
+              <p className="cod-amount">Amount to Pay: <strong>KSh {totalPrice.toLocaleString()}</strong></p>
+              <p className="cod-instructions">
+                Please have <strong>KSh {totalPrice.toLocaleString()}</strong> ready when the delivery person arrives at your doorstep.
+              </p>
+              <p className="cod-note">📱 Our delivery team will call you before arriving. Keep your phone accessible.</p>
+              <div className="cod-tips">
+                <p>💡 Tips for smooth delivery:</p>
+                <ul>
+                  <li>Have exact change ready</li>
+                  <li>Be available at the delivery address</li>
+                  <li>Check your order before payment</li>
+                </ul>
+              </div>
+            </div>
+          ) : (
+            <div className="mpesa-message">
+              <div className="payment-type-icon">📱</div>
+              <h3>M-Pesa Payment</h3>
+              <p className="mpesa-instructions">
+                A pop-up was sent to your phone. Please enter your M-Pesa PIN to complete payment of <strong>KSh {totalPrice.toLocaleString()}</strong>.
+              </p>
+              <p className="mpesa-note">📲 Confirmation will be sent via SMS once payment is received.</p>
+              <div className="mpesa-tips">
+                <p>💡 Didn't get the prompt?</p>
+                <ul>
+                  <li>Check your phone for any pending M-Pesa messages</li>
+                  <li>Ensure you have enough M-Pesa balance</li>
+                  <li>Wait up to 2 minutes for the prompt</li>
+                </ul>
+              </div>
+            </div>
+          )}
+          
           <div className="success-buttons">
             <Link href="/products" className="btn btn-primary">
               Continue Shopping
@@ -394,6 +432,68 @@ export default function CheckoutPage() {
             gap: 16px;
             justify-content: center;
             margin-top: 32px;
+          }
+          .cod-message, .mpesa-message {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin: 20px 0;
+            text-align: left;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+          }
+          .payment-type-icon {
+            font-size: 2.5rem;
+            margin-bottom: 12px;
+            text-align: center;
+          }
+          .cod-message h3, .mpesa-message h3 {
+            text-align: center;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+          }
+          .cod-message {
+            border: 2px solid #ffc107;
+            background: linear-gradient(to bottom, #fffde7 0%, #fff8e1 100%);
+          }
+          .mpesa-message {
+            border: 2px solid #22c55e;
+            background: linear-gradient(to bottom, #f0fdf4 0%, #dcfce7 100%);
+          }
+          .cod-amount {
+            font-size: 1.5rem;
+            color: #f57c00;
+            margin-bottom: 12px;
+            text-align: center;
+          }
+          .cod-instructions, .mpesa-instructions {
+            color: #333;
+            margin-bottom: 12px;
+            line-height: 1.6;
+          }
+          .cod-note, .mpesa-note {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 16px;
+          }
+          .cod-tips, .mpesa-tips {
+            background: rgba(255,255,255,0.7);
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 16px;
+          }
+          .cod-tips p, .mpesa-tips p {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #555;
+          }
+          .cod-tips ul, .mpesa-tips ul {
+            margin: 0;
+            padding-left: 20px;
+            color: #666;
+            font-size: 0.9rem;
+          }
+          .cod-tips li, .mpesa-tips li {
+            margin-bottom: 4px;
           }
         `}</style>
       </div>

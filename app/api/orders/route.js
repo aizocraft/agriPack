@@ -58,6 +58,7 @@ export async function POST(request) {
       taxPrice: Number(taxPrice),
       shippingPrice: Number(shippingPrice),
       totalPrice: Number(totalPrice),
+      phoneNumber,
       status: 'pending'
     };
 
@@ -123,19 +124,42 @@ export async function GET(request) {
 
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type');
+    const page = parseInt(searchParams.get('page')) || 1;
+    const limit = parseInt(searchParams.get('limit')) || 10;
+    const status = searchParams.get('status');
+    const paymentStatus = searchParams.get('paymentStatus');
 
     let orders;
+    let totalCount = 0;
 
     if (type === 'farmer') {
       const farmerProducts = await Product.find({ farmer: userId }).select('_id');
       const productIds = farmerProducts.map(p => p._id);
 
-      orders = await Order.find({ 
-        'orderItems.product': { $in: productIds }
-      })
+      // Build query for farmer orders
+      let query = { 'orderItems.product': { $in: productIds } };
+      
+      // Filter by status
+      if (status && status !== 'all') {
+        query.status = status;
+      }
+      
+      // Filter by payment status
+      if (paymentStatus === 'paid') {
+        query.isPaid = true;
+      } else if (paymentStatus === 'unpaid') {
+        query.isPaid = false;
+      }
+
+      // Get total count for pagination
+      totalCount = await Order.countDocuments(query);
+
+      orders = await Order.find(query)
         .populate('user', 'name email phone')
         .populate('orderItems.product', 'name image farmer')
-        .sort({ createdAt: -1 });
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit);
 
       orders = orders.map(order => {
         const orderObj = order.toObject();
@@ -149,12 +173,40 @@ export async function GET(request) {
         };
       });
     } else {
-      orders = await Order.find({ user: userId })
+      let query = { user: userId };
+      
+      // Filter by status
+      if (status && status !== 'all') {
+        query.status = status;
+      }
+      
+      // Filter by payment status
+      if (paymentStatus === 'paid') {
+        query.isPaid = true;
+      } else if (paymentStatus === 'unpaid') {
+        query.isPaid = false;
+      }
+
+      totalCount = await Order.countDocuments(query);
+      
+      orders = await Order.find(query)
         .populate('orderItems.product', 'name image')
-        .sort({ createdAt: -1 });
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit);
     }
 
-    return NextResponse.json({ orders });
+    const response = NextResponse.json({ 
+      orders,
+      totalPages: Math.ceil(totalCount / limit),
+      currentPage: page,
+      totalOrders: totalCount
+    });
+    
+    // Add cache headers
+    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120');
+    
+    return response;
   } catch (error) {
     return NextResponse.json({ message: error.message }, { status: 500 });
   }

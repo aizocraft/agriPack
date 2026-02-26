@@ -47,6 +47,7 @@ const orderSchema = new mongoose.Schema({
     default: 'pending'
   },
   mpesaCheckoutRequestID: String,
+  phoneNumber: { type: String }, // Phone number for guest users
   notes: { type: String }
 }, {
   timestamps: true
