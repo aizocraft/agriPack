@@ -84,9 +84,9 @@ export default function Header() {
     <header className={`header ${isScrolled ? 'scrolled' : ''}`}>
       <div className="container">
         <div className="header-content">
-          <Link href="/" className="logo">
-            <span className="logo-icon">🌾</span>
-            AgriPack
+<Link href="/" className="logo">
+            <img src="/icon.png" alt="AgriPack" className="logo-img" />
+            <span className="logo-text">AgriPack</span>
           </Link>
 
           {/* Search Bar - Desktop */}

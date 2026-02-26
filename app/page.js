@@ -40,7 +40,10 @@ export default function Home() {
     <>
       {/* Hero Section */}
       <section className="hero">
-        <div className="container">
+        <div className="hero-overlay"></div>
+        <div className="hero-pattern"></div>
+        <div className="container hero-content">
+          <div className="hero-badge">🌱 Fresh from the Farm</div>
           <h1 className="hero-title">Fresh From Farm to Table</h1>
           <p className="hero-subtitle">
             Connect directly with local farmers and get fresh, quality produce at fair prices
@@ -48,10 +51,25 @@ export default function Home() {
           <div className="hero-buttons">
             <Link href="/products" className="btn btn-secondary btn-large">
               Shop Now
+              <span className="btn-icon">→</span>
             </Link>
-            <Link href="/register?role=farmer" className="btn btn-outline btn-large" style={{ borderColor: 'white', color: 'white' }}>
+            <Link href="/register?role=farmer" className="btn btn-outline btn-large hero-btn-outline">
               Become a Seller
             </Link>
+          </div>
+          <div className="hero-stats">
+            <div className="hero-stat">
+              <span className="hero-stat-number">500+</span>
+              <span className="hero-stat-label">Farmers</span>
+            </div>
+            <div className="hero-stat">
+              <span className="hero-stat-number">10K+</span>
+              <span className="hero-stat-label">Happy Customers</span>
+            </div>
+            <div className="hero-stat">
+              <span className="hero-stat-number">50+</span>
+              <span className="hero-stat-label">Products</span>
+            </div>
           </div>
         </div>
       </section>
