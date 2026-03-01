@@ -21,7 +21,9 @@ async function getUserFromToken(request) {
 export async function GET(request, { params }) {
   try {
     await dbConnect();
-    const order = await Order.findById(params.id)
+    // Await params in Next.js 15+
+    const { id } = await params;
+    const order = await Order.findById(id)
       .populate('user', 'name email phone')
       .populate('orderItems.product', 'name image');
 
@@ -46,10 +48,12 @@ export async function GET(request, { params }) {
 export async function PUT(request, { params }) {
   try {
     await dbConnect();
+    // Await params in Next.js 15+
+    const { id } = await params;
     const body = await request.json();
     const { status, notes, isPaid } = body;
 
-    const order = await Order.findById(params.id);
+    const order = await Order.findById(id);
 
     if (!order) {
       return NextResponse.json(
@@ -84,7 +88,9 @@ export async function PUT(request, { params }) {
 export async function DELETE(request, { params }) {
   try {
     await dbConnect();
-    const order = await Order.findById(params.id);
+    // Await params in Next.js 15+
+    const { id } = await params;
+    const order = await Order.findById(id);
 
     if (!order) {
       return NextResponse.json(

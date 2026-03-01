@@ -14,6 +14,7 @@ export default function ProductsPage() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [inStockOnly, setInStockOnly] = useState(false);
   const [priceRange, setPriceRange] = useState({ min: 0, max: 10000 });
+  const [maxPriceLimit, setMaxPriceLimit] = useState(10000);
   const [categories, setCategories] = useState([]);
 
   useEffect(() => {
@@ -31,6 +32,13 @@ export default function ProductsPage() {
         // Extract unique categories
         const uniqueCategories = [...new Set(data.products?.map(p => p.category).filter(Boolean))];
         setCategories(uniqueCategories);
+        
+        // Set max price limit based on products
+        if (data.products && data.products.length > 0) {
+          const maxProductPrice = Math.max(...data.products.map(p => p.price || 0));
+          setMaxPriceLimit(Math.ceil(maxProductPrice * 1.1)); // 10% buffer
+          setPriceRange({ min: 0, max: Math.ceil(maxProductPrice * 1.1) });
+        }
       } else {
         setError(data.message || 'Failed to fetch products');
       }
@@ -90,7 +98,7 @@ export default function ProductsPage() {
     setSearchQuery('');
     setSelectedCategory('all');
     setInStockOnly(false);
-    setPriceRange({ min: 0, max: 10000 });
+    setPriceRange({ min: 0, max: maxPriceLimit });
   };
 
   if (loading) return <div className="container"><div className="spinner"></div></div>;
@@ -144,9 +152,27 @@ export default function ProductsPage() {
             </select>
           </div>
 
-          {/* Price Range */}
-          <div className="filter-group">
-            <label className="filter-label">Price Range</label>
+          {/* Price Range Slider */}
+          <div className="filter-group price-range-group">
+            <label className="filter-label">Price Range: KSh {priceRange.min} - KSh {priceRange.max}</label>
+            <div className="price-slider-container">
+              <input
+                type="range"
+                min="0"
+                max={maxPriceLimit}
+                value={priceRange.min}
+                onChange={(e) => handlePriceChange('min', e.target.value)}
+                className="price-slider price-slider-min"
+              />
+              <input
+                type="range"
+                min="0"
+                max={maxPriceLimit}
+                value={priceRange.max}
+                onChange={(e) => handlePriceChange('max', e.target.value)}
+                className="price-slider price-slider-max"
+              />
+            </div>
             <div className="price-inputs">
               <input
                 type="number"
@@ -348,6 +374,56 @@ export default function ProductsPage() {
         .filter-select:focus {
           outline: none;
           border-color: var(--primary);
+        }
+
+        .price-range-group {
+          min-width: 250px;
+        }
+
+        .price-slider-container {
+          position: relative;
+          height: 20px;
+          margin-bottom: 8px;
+        }
+
+        .price-slider {
+          position: absolute;
+          width: 100%;
+          height: 4px;
+          background: transparent;
+          pointer-events: none;
+          appearance: none;
+          -webkit-appearance: none;
+        }
+
+        .price-slider::-webkit-slider-runnable-track {
+          height: 4px;
+          background: var(--border);
+          border-radius: 2px;
+        }
+
+        .price-slider::-webkit-slider-thumb {
+          pointer-events: auto;
+          appearance: none;
+          -webkit-appearance: none;
+          width: 18px;
+          height: 18px;
+          background: var(--primary);
+          border-radius: 50%;
+          cursor: pointer;
+          margin-top: -7px;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .price-slider::-moz-range-thumb {
+          pointer-events: auto;
+          width: 18px;
+          height: 18px;
+          background: var(--primary);
+          border-radius: 50%;
+          cursor: pointer;
+          border: none;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
 
         .price-inputs {

@@ -42,6 +42,16 @@ function cartReducer(state, action) {
       };
     }
 
+    case 'CART_UPDATE_ITEM_QTY': {
+      const { id, qty } = action.payload;
+      return {
+        ...state,
+        cartItems: state.cartItems.map((item) =>
+          item._id === id ? { ...item, qty } : item
+        ),
+      };
+    }
+
     case 'CART_CLEAR':
       return {
         ...state,
@@ -109,6 +119,10 @@ export function CartProvider({ children }) {
     dispatch({ type: 'CART_REMOVE_ITEM', payload: id });
   };
 
+  const updateCartItemQty = (id, qty) => {
+    dispatch({ type: 'CART_UPDATE_ITEM_QTY', payload: { id, qty } });
+  };
+
   const clearCart = () => {
     dispatch({ type: 'CART_CLEAR' });
   };
@@ -129,6 +143,7 @@ export function CartProvider({ children }) {
         paymentMethod: state.paymentMethod,
         addToCart,
         removeFromCart,
+        updateCartItemQty,
         clearCart,
         saveShippingAddress,
         savePaymentMethod,

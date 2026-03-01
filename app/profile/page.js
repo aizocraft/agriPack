@@ -9,6 +9,8 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     const userInfo = localStorage.getItem('userInfo');
@@ -38,6 +40,32 @@ export default function ProfilePage() {
   const handleOrderClick = (order) => {
     setSelectedOrder(order);
     setShowOrderModal(true);
+  };
+
+  const handleDeleteProfile = async () => {
+    setDeleting(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/users/profile', {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        localStorage.removeItem('userInfo');
+        localStorage.removeItem('token');
+        window.location.href = '/';
+      } else {
+        const data = await res.json();
+        alert(data.message || 'Failed to delete profile');
+      }
+    } catch (error) {
+      console.error('Error deleting profile:', error);
+      alert('An error occurred while deleting your profile');
+    } finally {
+      setDeleting(false);
+      setShowDeleteConfirm(false);
+    }
   };
 
   if (!user) {
@@ -89,6 +117,15 @@ export default function ProfilePage() {
               </div>
             )}
           </div>
+          
+          <div className="profile-actions">
+            <button 
+              className="btn btn-danger"
+              onClick={() => setShowDeleteConfirm(true)}
+            >
+              Delete Profile
+            </button>
+          </div>
         </div>
 
         <div className="profile-section">
@@ -130,6 +167,38 @@ export default function ProfilePage() {
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="modal-overlay" onClick={() => setShowDeleteConfirm(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Delete Profile</h2>
+              <button className="close-btn" onClick={() => setShowDeleteConfirm(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <p className="delete-warning">
+                ⚠️ Are you sure you want to delete your profile? This action cannot be undone and all your data will be permanently removed.
+              </p>
+              <div className="delete-actions">
+                <button 
+                  className="btn btn-danger"
+                  onClick={handleDeleteProfile}
+                  disabled={deleting}
+                >
+                  {deleting ? 'Deleting...' : 'Yes, Delete My Profile'}
+                </button>
+                <button 
+                  className="btn btn-outline"
+                  onClick={() => setShowDeleteConfirm(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Order Details Modal */}
       {showOrderModal && selectedOrder && (
@@ -286,6 +355,32 @@ export default function ProfilePage() {
           margin-bottom: 20px;
         }
 
+        .profile-actions {
+          margin-top: 20px;
+          padding-top: 20px;
+          border-top: 1px solid var(--border);
+        }
+
+        .btn-danger {
+          background: var(--error);
+          color: white;
+          padding: 12px 24px;
+          border-radius: var(--radius);
+          font-weight: 600;
+          border: none;
+          cursor: pointer;
+          transition: var(--transition);
+        }
+
+        .btn-danger:hover {
+          background: #b71c1c;
+        }
+
+        .btn-danger:disabled {
+          opacity: 0.7;
+          cursor: not-allowed;
+        }
+
         .detail-card {
           display: flex;
           flex-direction: column;
@@ -423,6 +518,23 @@ export default function ProfilePage() {
 
         .modal-body {
           padding: 20px;
+        }
+
+        .delete-warning {
+          background: #ffebee;
+          padding: 16px;
+          border-radius: var(--radius);
+          margin-bottom: 20px;
+          color: #c62828;
+        }
+
+        .delete-actions {
+          display: flex;
+          gap: 12px;
+        }
+
+        .delete-actions .btn {
+          flex: 1;
         }
 
         .order-detail-row {

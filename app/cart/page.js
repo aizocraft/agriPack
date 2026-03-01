@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useCart } from '@/context/CartContext';
 
 export default function CartPage() {
-  const { cartItems, removeFromCart, clearCart } = useCart();
+  const { cartItems, removeFromCart, clearCart, updateCartItemQty } = useCart();
   const [loading, setLoading] = useState(false);
 
   // Calculate totals
@@ -13,6 +13,14 @@ export default function CartPage() {
   const taxPrice = itemsPrice * 0.1; // 10% tax
   const shippingPrice = itemsPrice > 1000 ? 0 : 150; // Free shipping over KSh 1000
   const totalPrice = itemsPrice + taxPrice + shippingPrice;
+
+  const handleQuantityChange = (item, newQty) => {
+    if (newQty <= 0) {
+      removeFromCart(item._id);
+    } else {
+      updateCartItemQty(item._id, newQty);
+    }
+  };
 
   const handleCheckout = () => {
     if (cartItems.length === 0) return;
@@ -66,8 +74,33 @@ export default function CartPage() {
                 <p className="cart-item-price">KSh {item.price} / {item.unit}</p>
               </div>
 
+              {/* Quantity Controls */}
               <div className="cart-item-quantity">
-                <span>Qty: {item.qty}</span>
+                <span className="qty-label">Qty:</span>
+                <div className="qty-controls">
+                  <button 
+                    className="qty-btn"
+                    onClick={() => handleQuantityChange(item, item.qty - 1)}
+                    aria-label="Decrease quantity"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    className="qty-input"
+                    value={item.qty}
+                    onChange={(e) => handleQuantityChange(item, parseFloat(e.target.value) || 0)}
+                    min="0"
+                    step="0.125"
+                  />
+                  <button 
+                    className="qty-btn"
+                    onClick={() => handleQuantityChange(item, item.qty + 1)}
+                    aria-label="Increase quantity"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
 
               <div className="cart-item-subtotal">
@@ -186,7 +219,58 @@ export default function CartPage() {
         }
 
         .cart-item-quantity {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .qty-label {
+          font-size: 0.875rem;
           color: var(--text-secondary);
+        }
+
+        .qty-controls {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          background: var(--border);
+          border-radius: var(--radius);
+          padding: 2px;
+        }
+
+        .qty-btn {
+          width: 28px;
+          height: 28px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: white;
+          border: none;
+          border-radius: 4px;
+          font-size: 1rem;
+          cursor: pointer;
+          transition: var(--transition);
+          color: var(--text-primary);
+        }
+
+        .qty-btn:hover {
+          background: var(--primary);
+          color: white;
+        }
+
+        .qty-input {
+          width: 50px;
+          height: 28px;
+          text-align: center;
+          border: none;
+          background: transparent;
+          font-weight: 600;
+          font-size: 0.9rem;
+          color: var(--text-primary);
+        }
+
+        .qty-input:focus {
+          outline: none;
         }
 
         .cart-item-subtotal {
@@ -248,7 +332,7 @@ export default function CartPage() {
 
           .cart-item {
             grid-template-columns: 60px 1fr;
-            grid-template-rows: auto auto;
+            grid-template-rows: auto auto auto;
             gap: 12px;
           }
 
@@ -257,9 +341,14 @@ export default function CartPage() {
             height: 60px;
           }
 
-          .cart-item-quantity,
+          .cart-item-quantity {
+            grid-column: 2;
+            justify-self: start;
+          }
+
           .cart-item-subtotal {
             grid-column: 2;
+            text-align: left;
           }
 
           .remove-btn {

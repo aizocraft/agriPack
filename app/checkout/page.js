@@ -108,7 +108,8 @@ export default function CheckoutPage() {
           city: formData.city,
           state: formData.state,
           zipCode: formData.zipCode,
-          country: 'Kenya'
+          country: 'Kenya',
+          phone: formData.phone
         },
         paymentMethod: paymentMethod || 'mpesa',
         itemsPrice,
@@ -565,14 +566,13 @@ export default function CheckoutPage() {
 
               <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label">Zip Code</label>
+                  <label className="form-label">Zip Code (Optional)</label>
                   <input
                     type="text"
                     name="zipCode"
                     className="form-input"
                     value={formData.zipCode}
                     onChange={handleChange}
-                    required
                   />
                 </div>
 
